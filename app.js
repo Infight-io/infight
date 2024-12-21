@@ -259,6 +259,30 @@ app.post('/games/:teamId/:gameId/start', async (req, res) => {
 
 })
 
+//this is a development endpoing to start a game before it automatically does
+app.post('/games/:teamId/:gameId/spawnEnemy', async (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(403).send('This endpoint is only available in development mode');
+  }
+
+  const game = await infightDB.Game.findByPk(req.params.gameId);
+  if (!game) {
+    return res.status(404).send("Invalid gameId")
+  }
+
+  try {
+
+    if (req.body.enemyType == 'lootGoblin') {
+      await game.addLootGoblin()
+    }
+
+    res.send(game)
+  } catch (error) {
+    return res.status(404).send(error)
+  }
+
+})
+
 //this is a development endpoint to force a tick before it automatically does one
 app.post('/games/:teamId/:gameId/tick', async (req, res) => {
   if (process.env.NODE_ENV !== 'development') {
@@ -320,6 +344,12 @@ setInterval(async () => {
   //console.log("Doing a start scan")
   infightDB.sequelize.models.Game.startGamesNeedingToStart()
 }, 1000 * 30) //how often to query for games that need AP distro
+
+// create enemies randomly
+setInterval(async () => {
+  //console.log("Doing a start scan")
+  //infightDB.sequelize.models.Game.sprinkleEnemies()
+}, 1000 * 60) //how often to query for games that need AP distro
 
 app.listen(port, () => {
   console.log(`Infight server listening on port ${port}`)

@@ -446,7 +446,9 @@ module.exports = function (sequelize) {
             }
             return playersOnGoals
         }
-
+        isSpotOnBoard(x, y) {
+            return x >= 0 && x < this.boardWidth && y >= 0 && y < this.boardHeight
+        }
         expandFires() {
             let firesExpanded = 0
             const newFireChance = 0.2
@@ -456,14 +458,10 @@ module.exports = function (sequelize) {
                     if (obj.type == 'fire') {
                         if (Math.random() < newFireChance) {
 
-                            const directions = [
-                                [-1, 0], [1, 0], [0, -1], [0, 1], // cardinal directions
-                                [-1, -1], [1, 1], [-1, 1], [1, -1] // diagonal directions
-                            ]
-                            const randomDirection = directions[Math.floor(Math.random() * directions.length)]
+                            const randomDirection = this.getRandomDirection()
                             const newFireX = obj.x + randomDirection[0]
                             const newFireY = obj.y + randomDirection[1]
-                            if (newFireX >= 0 && newFireX < this.boardWidth && newFireY >= 0 && newFireY < this.boardHeight && !this.isObjectInSpace([newFireX, newFireY], 'fire')) {
+                            if (this.isSpotOnBoard(newFireX, newFireY) && !this.isObjectInSpace([newFireX, newFireY], 'fire')) {
                                 firesExpanded++
                                 this.addObject({
                                     type: 'fire',
@@ -480,6 +478,15 @@ module.exports = function (sequelize) {
             } catch (error) {
                 console.log("fire xpansion err", error)
             }
+        }
+
+        getRandomDirection() {
+            const directions = [
+                [-1, 0], [1, 0], [0, -1], [0, 1], // cardinal directions
+                [-1, -1], [1, 1], [-1, 1], [1, -1] // diagonal directions
+            ]
+            const randomDirection = directions[Math.floor(Math.random() * directions.length)]
+            return randomDirection
         }
 
         async giveAllLivingPlayersAP(ap) {
@@ -1127,6 +1134,147 @@ module.exports = function (sequelize) {
                 const game = gamesNeedingTicks[i];
                 game.doTick()
             }
+        }
+
+        static async sprinkleEnemies() {
+            let activeGames = await this.findAll({
+                where: {
+                    status: 'active'
+                },
+            })
+
+            for (let i = 0; i < activeGames.length; i++) {
+                const game = activeGames[i];
+                
+            }
+        }
+
+        async addLootGoblin() {
+            const gamePlayers = await this.getGamePlayers()
+            let emptySpace = await this.#findClearSpace(gamePlayers)
+            if (emptySpace === null) {
+                return
+            }
+
+            let enemy = {
+                type: 'lootGoblin',
+                x: emptySpace[0],
+                y: emptySpace[1],
+                health: 4,
+                turnsLeft: 9,
+                stolenLoot: {
+                    hearts: 0,
+                    powers: 0
+                }
+            }
+            this.addObject(enemy)
+            this.save()
+            this.notify("🦹‍♂️ **A Loot Goblin** has appeared! 🦹‍♂️")
+
+            const secsPerGoblinMove = 3
+            const goblinNewSpotChecks = 5
+            let intyGob = setInterval(async () => {
+
+                //find the goblin, to see if it's been shot or dead or whatever
+                let freshGame = await this.constructor.findByPk(this.id)
+
+                const freshGoblin = freshGame.boardObjectLocations.filter(obj => obj.type === 'lootGoblin')[0]
+                if (!freshGoblin) {
+                    clearInterval(intyGob);
+                }
+                const innerGamePlayers = await freshGame.getGamePlayers()
+
+                let checkCount = 0
+                let foundNewGoblinSpace = false
+                while (!foundNewGoblinSpace) {
+                    checkCount++
+                    if (checkCount > goblinNewSpotChecks) {
+                        break //feels boxed in
+                    }
+                    const randomDirection = this.getRandomDirection()
+                    const newGobboX = freshGoblin.x + randomDirection[0]
+                    const newGobboY = freshGoblin.y + randomDirection[1]
+                    if (this.isSpotOnBoard(newGobboX, newGobboY) && !freshGame.isPlayerInSpace(innerGamePlayers, [newGobboX, newGobboY])) {
+                        freshGoblin.x = newGobboX
+                        freshGoblin.y = newGobboY
+                        foundNewGoblinSpace = true
+                    }
+                }
+
+                let lootGoblinMoveText = "🦹‍♂️ **Loot Goblin** scurried! 🦹‍♂️"
+
+                const adjacentPlayers = innerGamePlayers.filter(player => {
+                    const dx = Math.abs(player.positionX - freshGoblin.x);
+                    const dy = Math.abs(player.positionY - freshGoblin.y);
+                    return (dx <= 1 && dy <= 1) && (dx + dy !== 0); // Ensure it's adjacent and not the same spot
+                });
+
+                if (adjacentPlayers.length > 0) {
+                    const playerIds = adjacentPlayers.map(player => `<@${player.PlayerId}>`).join(' and ');
+                    
+                    const verbs = [
+                        'sneaked past 🕵️‍♂️', 
+                        'darted around 🏃‍♂️', 
+                        'slipped by 🕶️', 
+                        'slapped ✋', 
+                        'dodged 🌀', 
+                        'evaded 🏃‍♀️', 
+                        'juked 🏃‍♂️', 
+                        'kissed 💋',
+                        'nudged 🤏', 
+                        'pinched 🤏', 
+                        'brushed by 💨', 
+                        'slid past 🛷',
+                        'farted on 🤢',
+                        'chucked dookie 💩 on ',
+                        'sprinted past 🏃‍♂️',
+                        'teleported by 🌀',
+                        'zoomed past 🚀',
+                        'sneaked by 🕵️‍♀️',
+                        'tiptoed around 👣',
+                        'whizzed by 💨',
+                        'slinked past 🐍',
+                        'dashed past 🏃‍♀️',
+                        'glided by 🛷',
+                        'whisked past 🌬️'
+                    ]
+                    let verb = verbs[Math.floor(Math.random() * verbs.length)];
+                    lootGoblinMoveText = `🦹‍♂️ **Loot Goblin** *${verb}* ${playerIds}! 🦹‍♂️`
+                }
+
+                let stoleText = '';
+                const objectsAtGoblin = freshGame.getObjectsInSpace([freshGoblin.x, freshGoblin.y]);
+                for (const obj of objectsAtGoblin) {
+                    if (obj.type === 'heart' || obj.type === 'power') {
+                        freshGame.removeObjectInSpace([freshGoblin.x, freshGoblin.y], obj.type);
+                        let itemEmoji = obj.type === 'heart' ? '❤️' : '⚡';
+                        stoleText = ` and stole a ${obj.type} ${itemEmoji}! `;
+                        
+                        if (obj.type === 'heart') {
+                            freshGoblin.stolenLoot.hearts += 1;
+                        } else if (obj.type === 'power') {
+                            freshGoblin.stolenLoot.powers += 1;
+                        }
+                    }
+                }
+
+                freshGoblin.turnsLeft -= 1
+
+                if (freshGoblin.turnsLeft < 1) {
+                    freshGame.removeObjectInSpace([freshGoblin.x, freshGoblin.y], 'lootGoblin')
+                    freshGame.notify("🦹‍♂️ **Loot Goblin** has fled! 🦹‍♂️")
+                    clearInterval(intyGob);
+                    return
+                }
+                freshGame.changed('boardObjectLocations', true); // deep change operations in a json field aren't automatically detected by sequelize
+                freshGame.save()
+
+                if (!foundNewGoblinSpace) {
+                    lootGoblinMoveText = "🦹‍♂️ **Loot Goblin** feels cornered! 🦹‍♂️"
+                }
+                freshGame.notify(lootGoblinMoveText + stoleText)
+
+            }, 1000 * secsPerGoblinMove);
         }
 
         static calculateBoardSize(playerCount, desiredDensity = 0.2) {

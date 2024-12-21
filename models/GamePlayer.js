@@ -28,7 +28,7 @@ module.exports = function (sequelize) {
             actions: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
-                defaultValue: 1
+                defaultValue: 3
             },
             range: {
                 type: DataTypes.INTEGER,
