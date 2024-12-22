@@ -1219,7 +1219,7 @@ module.exports = function (sequelize) {
                 type: 'lootGoblin',
                 x: emptySpace[0],
                 y: emptySpace[1],
-                health: 3,
+                health: 4,
                 turnsLeft: 9,
                 stolenLoot: {
                     hearts: 0,

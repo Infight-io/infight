@@ -349,7 +349,7 @@ setInterval(async () => {
 setInterval(async () => {
   //console.log("Doing a start scan")
   infightDB.sequelize.models.Game.sprinkleEnemies()
-}, 1000 * 60) //how often to query for games that need AP distro
+}, 1000 * 60 * 5) //how often to query for games that need AP distro
 
 app.listen(port, () => {
   console.log(`Infight server listening on port ${port}`)
