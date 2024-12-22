@@ -348,7 +348,7 @@ setInterval(async () => {
 // create enemies randomly
 setInterval(async () => {
   //console.log("Doing a start scan")
-  //infightDB.sequelize.models.Game.sprinkleEnemies()
+  infightDB.sequelize.models.Game.sprinkleEnemies()
 }, 1000 * 60) //how often to query for games that need AP distro
 
 app.listen(port, () => {

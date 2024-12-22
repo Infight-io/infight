@@ -953,6 +953,63 @@ module.exports = function (sequelize) {
                     }
                 }
 
+                let gamePlayers = await this.getGamePlayers()
+                const lootGoblin = this.getObjectsInSpace([targetX, targetY]).find(obj => obj.type === 'lootGoblin');
+                if (lootGoblin) {
+                    lootGoblin.health -= 1;
+                    if (lootGoblin.health <= 0) {
+
+                        let heartCount = lootGoblin.stolenLoot.hearts + 3
+                        let powerCount = lootGoblin.stolenLoot.powers + 3 //ditch?
+
+                        for (let i = 0; i < 9; i++) { //all around
+
+                            let flavas = ['heart', 'power']
+                            const typeToDrop = flavas[Math.floor(Math.random() * flavas.length)];
+
+                            let seekCount = 0
+                            let foundLootSpot = false
+                            while (!foundLootSpot) {
+                                seekCount++
+                                if (seekCount > 100) {
+                                    break
+                                }
+
+                                const randomDirection = this.getRandomDirection()
+                                const lootX = lootGoblin.x + randomDirection[0]
+                                const lootY = lootGoblin.y + randomDirection[1]
+
+                                if (this.isSpotOnBoard(lootX, lootY)
+                                    && !this.isPlayerInSpace(gamePlayers, [lootX, lootY])
+                                    && !this.isObjectInSpace([lootX, lootY])) {
+                                    foundLootSpot = true
+                                    this.boardObjectLocations.push({
+                                        type: typeToDrop,
+                                        x: lootX,
+                                        y: lootY
+                                    })
+                                }
+                            }
+                        }
+
+
+                        this.removeObjectInSpace([targetX, targetY], 'lootGoblin');
+                        this.boardObjectLocations.push({ //replace goblin with power
+                            type: 'power',
+                            x: Number(targetX),
+                            y: Number(targetY)
+                        })
+
+                        this.notify("💀 <@" + gp.PlayerId + "> **killed** the Loot Goblin and retrieved the stolen loot! 💀");
+                    } else {
+                        this.notify("💥 <@" + gp.PlayerId + "> **shot** the Loot Goblin! It has " + lootGoblin.health + " health left. 💥");
+                        //drop either one heart or one power
+                    }
+                    this.changed('boardObjectLocations', true); // deep change operations in a json field aren't automatically detected by sequelize
+                    await this.save();
+                    return "Shot Loot Goblin!";
+                }
+
                 if (!targetGamePlayer) {
                     throw new Error("No player at that position")
                 }
@@ -970,7 +1027,7 @@ module.exports = function (sequelize) {
                     Stats.increment(gp, Stats.GamePlayerStats.killedSomeone)
                     Stats.increment(targetGamePlayer, Stats.GamePlayerStats.wasKilled)
 
-                    gp.actions += Math.floor(targetGamePlayer.actions/2)  // give the killer an AP reward
+                    gp.actions += Math.floor(targetGamePlayer.actions / 2)  // give the killer an AP reward
 
                     this.markPlayerDead(targetGamePlayer)
                 }
@@ -1145,7 +1202,9 @@ module.exports = function (sequelize) {
 
             for (let i = 0; i < activeGames.length; i++) {
                 const game = activeGames[i];
-                
+                if (Math.random() < 0.03) {
+                    await game.addLootGoblin();
+                }
             }
         }
 
@@ -1160,7 +1219,7 @@ module.exports = function (sequelize) {
                 type: 'lootGoblin',
                 x: emptySpace[0],
                 y: emptySpace[1],
-                health: 4,
+                health: 3,
                 turnsLeft: 9,
                 stolenLoot: {
                     hearts: 0,
@@ -1171,7 +1230,7 @@ module.exports = function (sequelize) {
             this.save()
             this.notify("🦹‍♂️ **A Loot Goblin** has appeared! 🦹‍♂️")
 
-            const secsPerGoblinMove = 3
+            const secsPerGoblinMove = 10
             const goblinNewSpotChecks = 5
             let intyGob = setInterval(async () => {
 
@@ -1179,8 +1238,9 @@ module.exports = function (sequelize) {
                 let freshGame = await this.constructor.findByPk(this.id)
 
                 const freshGoblin = freshGame.boardObjectLocations.filter(obj => obj.type === 'lootGoblin')[0]
-                if (!freshGoblin) {
+                if (!freshGoblin || freshGoblin == null) {
                     clearInterval(intyGob);
+                    return
                 }
                 const innerGamePlayers = await freshGame.getGamePlayers()
 
@@ -1211,19 +1271,19 @@ module.exports = function (sequelize) {
 
                 if (adjacentPlayers.length > 0) {
                     const playerIds = adjacentPlayers.map(player => `<@${player.PlayerId}>`).join(' and ');
-                    
+
                     const verbs = [
-                        'sneaked past 🕵️‍♂️', 
-                        'darted around 🏃‍♂️', 
-                        'slipped by 🕶️', 
-                        'slapped ✋', 
-                        'dodged 🌀', 
-                        'evaded 🏃‍♀️', 
-                        'juked 🏃‍♂️', 
+                        'sneaked past 🕵️‍♂️',
+                        'darted around 🏃‍♂️',
+                        'slipped by 🕶️',
+                        'slapped ✋',
+                        'dodged 🌀',
+                        'evaded 🏃‍♀️',
+                        'juked 🏃‍♂️',
                         'kissed 💋',
-                        'nudged 🤏', 
-                        'pinched 🤏', 
-                        'brushed by 💨', 
+                        'nudged 🤏',
+                        'pinched 🤏',
+                        'brushed by 💨',
                         'slid past 🛷',
                         'farted on 🤢',
                         'chucked dookie 💩 on ',
@@ -1249,7 +1309,7 @@ module.exports = function (sequelize) {
                         freshGame.removeObjectInSpace([freshGoblin.x, freshGoblin.y], obj.type);
                         let itemEmoji = obj.type === 'heart' ? '❤️' : '⚡';
                         stoleText = ` and stole a ${obj.type} ${itemEmoji}! `;
-                        
+
                         if (obj.type === 'heart') {
                             freshGoblin.stolenLoot.hearts += 1;
                         } else if (obj.type === 'power') {
