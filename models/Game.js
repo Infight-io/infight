@@ -957,6 +957,15 @@ module.exports = function (sequelize) {
                 const lootGoblin = this.getObjectsInSpace([targetX, targetY]).find(obj => obj.type === 'lootGoblin');
                 if (lootGoblin) {
                     lootGoblin.health -= 1;
+
+                    let flavas = ['heart', 'power']
+                    let typeToDrop = flavas[Math.floor(Math.random() * flavas.length)];
+                    if (typeToDrop == 'heart') {
+                        gp.health += 1
+                    } else {
+                        gp.actions += 1
+                    }
+
                     if (lootGoblin.health <= 0) {
 
                         let heartCount = lootGoblin.stolenLoot.hearts + 3
@@ -964,8 +973,7 @@ module.exports = function (sequelize) {
 
                         for (let i = 0; i < 9; i++) { //all around
 
-                            let flavas = ['heart', 'power']
-                            const typeToDrop = flavas[Math.floor(Math.random() * flavas.length)];
+                            const lootyFlav = flavas[Math.floor(Math.random() * flavas.length)];
 
                             let seekCount = 0
                             let foundLootSpot = false
@@ -984,7 +992,7 @@ module.exports = function (sequelize) {
                                     && !this.isObjectInSpace([lootX, lootY])) {
                                     foundLootSpot = true
                                     this.boardObjectLocations.push({
-                                        type: typeToDrop,
+                                        type: lootyFlav,
                                         x: lootX,
                                         y: lootY
                                     })
@@ -1000,9 +1008,9 @@ module.exports = function (sequelize) {
                             y: Number(targetY)
                         })
 
-                        this.notify("💀 <@" + gp.PlayerId + "> **killed** the Loot Goblin and retrieved the stolen loot! 💀");
+                        this.notify("💀 <@" + gp.PlayerId + "> **killed** the Loot Goblin, pickups exploded everywhere! 💀");
                     } else {
-                        this.notify("💥 <@" + gp.PlayerId + "> **shot** the Loot Goblin! It has " + lootGoblin.health + " health left. 💥");
+                        this.notify("💥 <@" + gp.PlayerId + "> **shot** the Loot Goblin and gained a " + typeToDrop + "! It has " + lootGoblin.health + " health left. 💥");
                         //drop either one heart or one power
                     }
                     this.changed('boardObjectLocations', true); // deep change operations in a json field aren't automatically detected by sequelize
