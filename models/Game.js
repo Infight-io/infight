@@ -1228,7 +1228,7 @@ module.exports = function (sequelize) {
                 x: emptySpace[0],
                 y: emptySpace[1],
                 health: 4,
-                turnsLeft: 9,
+                turnsLeft: 10,
                 stolenLoot: {
                     hearts: 0,
                     powers: 0
@@ -1238,7 +1238,7 @@ module.exports = function (sequelize) {
             this.save()
             this.notify("🦹‍♂️ **A Loot Goblin** has appeared! 🦹‍♂️")
 
-            const secsPerGoblinMove = 10
+            const secsPerGoblinMove = 30
             const goblinNewSpotChecks = 5
             let intyGob = setInterval(async () => {
 
