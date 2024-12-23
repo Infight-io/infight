@@ -270,6 +270,7 @@ module.exports = function (sequelize) {
                         await goalPlayer.save()
                         if (gpScore >= 5) { // game is won at five points... TODO: make configurable, handle ties
                             await this.endGameAndBeginAnew('won', [goalPlayer], guild);
+                            return
                         }
                     }
                 }
