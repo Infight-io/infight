@@ -967,9 +967,8 @@ module.exports = function (sequelize) {
                     }
 
                     if (lootGoblin.health <= 0) {
-
-                        let heartCount = lootGoblin.stolenLoot.hearts + 3
-                        let powerCount = lootGoblin.stolenLoot.powers + 3 //ditch?
+                        gp.health += lootGoblin.stolenLoot.hearts
+                        gp.actions += lootGoblin.stolenLoot.powers
 
                         for (let i = 0; i < 9; i++) { //all around
 
@@ -1000,7 +999,6 @@ module.exports = function (sequelize) {
                             }
                         }
 
-
                         this.removeObjectInSpace([targetX, targetY], 'lootGoblin');
                         this.boardObjectLocations.push({ //replace goblin with power
                             type: 'power',
@@ -1014,6 +1012,8 @@ module.exports = function (sequelize) {
                         //drop either one heart or one power
                     }
                     this.changed('boardObjectLocations', true); // deep change operations in a json field aren't automatically detected by sequelize
+                    
+                    await gp.save();
                     await this.save();
                     return "Shot Loot Goblin!";
                 }
