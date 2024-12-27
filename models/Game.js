@@ -311,49 +311,7 @@ module.exports = function (sequelize) {
                 }
 
 
-                if (this.suddenDeathRound == 0) {
-                    this.notify("⚡ Infight distributed AP! [Make a move](" + this.getUrl() + ") and watch your back!")
-                }
-
-                if (this.suddenDeathRound > 0 && false) { // disabled for now
-                    const edgeDistance = this.suddenDeathRound; // Define the distance from the edge you want to check
-
-                    await this.giveAllLivingPlayersAP(2)
-                    this.notify("🌪️ **The storm** is closing in! You draw an extra AP from its power! 🌪️")
-
-                    const players = await this.getGamePlayers(); //get this again, so as not to process players killed by fire again
-                    const livingPlayers = this.constructor.getLivingPlayers(players)
-                    for (let i = 0; i < livingPlayers.length; i++) {
-                        const player = livingPlayers[i];
-                        const { positionX, positionY } = player;
-
-                        if (
-                            positionX + 1 <= edgeDistance || // Left edge
-                            positionX >= this.boardWidth - (edgeDistance + 1) || // Right edge
-                            positionY + 1 <= edgeDistance || // Top edge
-                            positionY >= this.boardHeight - (edgeDistance + 1) // Bottom edge
-                        ) {
-                            console.log(`Player ${player.PlayerId} is within ${edgeDistance} units from the edge.`);
-                            player.health -= 1;
-                            Stats.increment(player, Stats.GamePlayerStats.zapped)
-
-                            if (player.health === 0) {
-                                player.status = 'dead';
-                                player.deathTime = new Date();
-                                playersKilledByEnvironment.push(player);
-                                this.notify(`🌪️ **The storm** shocked and killed <@${player.PlayerId}>! They're out!`);
-                            } else {
-                                this.notify(`🌪️ **The storm** shocked <@${player.PlayerId}> for 1 HP! Run to the center!`);
-                            }
-                            await player.save();
-                        }
-                    }
-
-                    //don't grow wider than half the width
-                    if (this.suddenDeathRound < Math.ceil(this.boardHeight / 2)) {
-                        this.suddenDeathRound += 1;
-                    }
-                }
+                this.notify("### ⚡ Infight distributed AP! [Make a move](" + this.getUrl() + ") and watch your back!")
 
                 //all remaining players were killed by environment
                 if (playersKilledByEnvironment.length == countAliveBeforeEnvironmentalDeaths) {
@@ -1035,9 +993,6 @@ module.exports = function (sequelize) {
 
                     Stats.increment(gp, Stats.GamePlayerStats.killedSomeone)
                     Stats.increment(targetGamePlayer, Stats.GamePlayerStats.wasKilled)
-
-                    gp.actions += Math.floor(targetGamePlayer.actions / 2)  // give the killer an AP reward
-
                     this.markPlayerDead(targetGamePlayer)
                 }
 
@@ -1054,22 +1009,9 @@ module.exports = function (sequelize) {
 
                 let shotMsg = "<@" + gp.PlayerId + "> **💥shot💥** <@" + targetGamePlayer.PlayerId + ">, reducing their health to **" + targetGamePlayer.health + "**! 🩸"
                 if (targetGamePlayer.health == 0) {
-                    shotMsg = "### <@" + gp.PlayerId + "> **☠️ ELIMINATED ☠️** <@" + targetGamePlayer.PlayerId + ">  and got an AP back!"
+                    shotMsg = "### <@" + gp.PlayerId + "> **☠️ ELIMINATED ☠️** <@" + targetGamePlayer.PlayerId + ">!"
                 }
                 this.notify(shotMsg)
-
-                //start sudden death
-                // if (countAlive == 2 && this.suddenDeathRound == 0) {
-                //     this.suddenDeathRound = 1
-                //     await this.save()
-                //     this.notify("🚨 **Sudden Death!** Only two players remain! The storm approaches! 🌪️")
-                // }
-
-                // if (countAlive == 1) {
-                //     gp.winPosition = 1
-                //     await gp.save()
-                //     await this.endGameAndBeginAnew('won', [gp], guild)
-                // }
 
                 return "Shot!"
             }
@@ -1079,7 +1021,7 @@ module.exports = function (sequelize) {
 
         markPlayerDead(targetGamePlayer) {
             targetGamePlayer.status = 'dead'
-            targetGamePlayer.actions = Math.floor(targetGamePlayer.actions / 2)
+            //targetGamePlayer.actions = Math.floor(targetGamePlayer.actions / 2)
             targetGamePlayer.juryVotesToSpend = 1
             targetGamePlayer.deathTime = new Date()
         }
@@ -1523,11 +1465,6 @@ module.exports = function (sequelize) {
                 type: DataTypes.JSON,
                 allowNull: true,
                 defaultValue: []
-            },
-            suddenDeathRound: {
-                type: DataTypes.INTEGER,
-                allowNull: false,
-                defaultValue: 0
             }
         },
         { sequelize }
