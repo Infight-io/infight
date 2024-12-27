@@ -449,8 +449,8 @@ module.exports = function (sequelize) {
         }
 
         async giveAllLivingPlayersAP(ap) {
-            await this.sequelize.query('UPDATE "GamePlayers" SET actions = actions + ? WHERE "GameId" = ? AND status = ?', {
-                replacements: [ap, this.id, 'alive']
+            await this.sequelize.query(`UPDATE "GamePlayers" SET actions = actions + ? WHERE "GameId" = ? AND status = 'alive' AND actions < 5`, {
+                replacements: [ap, this.id]
             })
         }
 
