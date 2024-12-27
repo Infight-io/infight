@@ -95,9 +95,7 @@ module.exports = function (app, settings, db) {
         })
 
 
-        await db.PlayerGuild.bulkCreate(associations, {
-            updateOnDuplicate: []
-        }).catch(function (err) {
+        await db.PlayerGuild.bulkCreate(associations, {}).catch(function (err) {
             console.log(err)
           })
     }
