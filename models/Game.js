@@ -1118,10 +1118,40 @@ module.exports = function (sequelize) {
             await this.calcWinPositions()
             await this.sendAfterActionReport()
 
+            await this.optOutIdlers()
+
             guild.currentGameId = null
             await guild.save()
 
             await this.sequelize.models.Game.createNewGame(this.GuildId)
+        }
+
+        async optOutIdlers(){
+            let optedOutPlayers = []
+            let allPlayers = await this.getGamePlayers()
+            for (let i = 0; i < allPlayers.length; i++) {
+                let player = allPlayers[i]
+
+                if (!player.stats.walked) {
+                    const playerGuild = await this.sequelize.models.PlayerGuild.findOne({
+                        where: {
+                            PlayerId: player.PlayerId,
+                            GuildId: this.GuildId
+                        }
+                    })
+
+                    if (playerGuild) {
+                        playerGuild.isOptedInToPlay = false;
+                        optedOutPlayers.push(player)
+                        await playerGuild.save();
+                    }
+                }
+            }
+
+            if (optedOutPlayers.length > 0) {
+                const optedOutPlayerIds = optedOutPlayers.map(player => `<@${player.PlayerId}>`).join(', ')
+                this.notify(`The following players have been opted out due to inactivity: ${optedOutPlayerIds}`)
+            }
         }
 
         static getLivingPlayers(gamePlayers) {
